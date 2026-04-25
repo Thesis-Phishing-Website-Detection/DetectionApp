@@ -1,0 +1,22 @@
+# Runtime dependencies for AI Phishing Website Detection app
+# For inference and detection only (model is pre-trained)
+
+# Core ML/NLP inference
+torch==2.2.0
+transformers==4.36.0
+numpy==1.24.3
+
+# Web scraping and parsing
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# HTML preprocessing and report generation
+jinja2==3.1.2
+
+# Text detection and translation
+langdetect==1.0.9
+deepl==1.17.0
+
+# Configuration management
+python-dotenv==1.0.0
