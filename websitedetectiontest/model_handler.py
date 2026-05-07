@@ -1,13 +1,40 @@
 """
 Model inference and prediction with attention-based attribution.
 """
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from typing import Dict, List, Tuple
-import logging
+import json
 import os
+from types import SimpleNamespace
+from typing import Dict, List, Tuple
+
+import torch
+import logging
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, DistilBertConfig, DistilBertModel
 
 logger = logging.getLogger(__name__)
+
+
+class DistilBertBinaryClassifier(torch.nn.Module):
+    """Minimal DistilBERT binary classifier used by modelsv2 checkpoints."""
+
+    def __init__(self, config: DistilBertConfig):
+        super().__init__()
+        self.distilbert = DistilBertModel(config)
+        self.dropout = torch.nn.Dropout(config.seq_classif_dropout)
+        self.classifier = torch.nn.Linear(config.dim, 1)
+
+    def forward(self, input_ids, attention_mask=None, output_attentions=False):
+        outputs = self.distilbert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_attentions=output_attentions,
+            return_dict=True,
+        )
+        cls_embedding = outputs.last_hidden_state[:, 0]
+        logits = self.classifier(self.dropout(cls_embedding))
+        return SimpleNamespace(
+            logits=logits,
+            attentions=outputs.attentions if output_attentions else None,
+        )
 
 
 class PhishingModelHandler:
@@ -18,7 +45,7 @@ class PhishingModelHandler:
         Initialize model handler.
         
         Args:
-            model_path: Path to model directory (containing config.json, model.safetensors, etc.)
+            model_path: Path to model directory (HF format or modelsv2/model.pt format)
         """
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model path does not exist: {model_path}")
@@ -32,12 +59,47 @@ class PhishingModelHandler:
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         
-        # Load model
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        # Load model (supports both HF folder and modelsv2 torch checkpoint)
+        self.model_format = 'modelsv2' if os.path.exists(os.path.join(model_path, 'model.pt')) else 'huggingface'
+        if self.model_format == 'modelsv2':
+            self.model = self._load_modelsv2(model_path)
+        else:
+            self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+
         self.model.to(self.device)
         self.model.eval()
         
-        logger.info("Model loaded successfully")
+        logger.info(f"Model loaded successfully ({self.model_format})")
+
+    def _load_modelsv2(self, model_path: str) -> torch.nn.Module:
+        """Load modelsv2 checkpoint (DistilBERT backbone + single-logit classifier)."""
+        model_file = os.path.join(model_path, 'model.pt')
+        if not os.path.exists(model_file):
+            raise FileNotFoundError(f"modelsv2 checkpoint not found at {model_file}")
+
+        config = DistilBertConfig()
+        config_file = os.path.join(model_path, 'config.json')
+        if os.path.exists(config_file):
+            with open(config_file, 'r', encoding='utf-8') as f:
+                training_config = json.load(f)
+            # modelsv2 stores max_length in training config; keep model limit aligned when present.
+            if 'max_length' in training_config:
+                config.max_position_embeddings = max(config.max_position_embeddings, int(training_config['max_length']) + 2)
+
+        model = DistilBertBinaryClassifier(config)
+
+        try:
+            state_dict = torch.load(model_file, map_location='cpu', weights_only=True)
+        except TypeError:
+            state_dict = torch.load(model_file, map_location='cpu')
+
+        load_info = model.load_state_dict(state_dict, strict=False)
+        if load_info.missing_keys:
+            logger.warning(f"modelsv2 missing keys while loading: {load_info.missing_keys}")
+        if load_info.unexpected_keys:
+            logger.warning(f"modelsv2 unexpected keys while loading: {load_info.unexpected_keys}")
+
+        return model
     
     def _get_device(self) -> torch.device:
         """
@@ -52,7 +114,7 @@ class PhishingModelHandler:
         logger.warning("Forcing CPU inference due to GPU compatibility limitations")
         return device
     
-    def _get_important_tokens(self, input_ids: torch.Tensor, attention: torch.Tensor, top_k: int = 10) -> List[Dict]:
+    def _get_important_tokens(self, input_ids: torch.Tensor, attention: Tuple[torch.Tensor, ...], top_k: int = 10) -> List[Dict]:
         """
         Extract important tokens based on attention weights.
         
@@ -74,6 +136,8 @@ class PhishingModelHandler:
         
         # Get top-k attention scores (excluding [CLS] and [SEP])
         top_k_val = min(top_k, cls_attention.shape[0] - 2)
+        if top_k_val <= 0:
+            return []
         top_scores, top_indices = torch.topk(cls_attention[1:-1], top_k_val)
         top_indices = top_indices + 1  # Adjust for excluding [CLS]
         
@@ -236,10 +300,17 @@ class PhishingModelHandler:
         
         # Extract logits
         logits = outputs.logits[0].cpu()
-        probabilities = torch.softmax(logits, dim=0).numpy()
-        
-        legitimate_prob = float(probabilities[0])
-        phishing_prob = float(probabilities[1])
+
+        # Support both 2-logit softmax models and 1-logit sigmoid models.
+        if logits.numel() == 1:
+            phishing_prob = float(torch.sigmoid(logits[0]).item())
+            legitimate_prob = 1.0 - phishing_prob
+        elif logits.shape[-1] == 2:
+            probabilities = torch.softmax(logits, dim=0).numpy()
+            legitimate_prob = float(probabilities[0])
+            phishing_prob = float(probabilities[1])
+        else:
+            raise ValueError(f"Unsupported logits shape: {tuple(logits.shape)}")
         
         predicted_class = int(phishing_prob > legitimate_prob)
         predicted_label = 'Phishing' if predicted_class == 1 else 'Legitimate'

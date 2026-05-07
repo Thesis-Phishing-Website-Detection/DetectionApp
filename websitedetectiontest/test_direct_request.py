@@ -21,7 +21,7 @@ print(f'Extracted text: {len(processed["cleaned_text"])} chars\n')
 print('Loading model...')
 current_dir = Path(__file__).parent
 project_root = current_dir.parent
-model_path = project_root / 'models' / 'distilbert_phishing_model'
+model_path = project_root / 'modelsv2'
 model_handler = PhishingModelHandler(str(model_path))
 print(f'Model loaded\n')
 

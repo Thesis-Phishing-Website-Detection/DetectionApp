@@ -465,7 +465,7 @@ DASHBOARD_TEMPLATE = """
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                         <div style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: 6px;">
-                            <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">ML Model</div>
+                            <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">DL Model</div>
                             <div style="font-size: 1.3em; font-weight: bold; color: {% if final_assessment.ml_prediction == 'Phishing' %}#d32f2f{% else %}#2e7d32{% endif %};">
                                 {{ final_assessment.ml_prediction }}
                             </div>
@@ -483,7 +483,7 @@ DASHBOARD_TEMPLATE = """
                             <div style="font-size: 1.3em; font-weight: bold; color: #667eea;">
                                 {{ final_assessment.boosted_confidence | round(1) }}%
                             </div>
-                            <div style="font-size: 0.9em; color: #999; margin-top: 5px;">Boosted from ML</div>
+                            <div style="font-size: 0.9em; color: #999; margin-top: 5px;">Boosted from DL</div>
                         </div>
                     </div>
                 </div>
@@ -655,7 +655,7 @@ DASHBOARD_TEMPLATE = """
         </div>
         
         <div class="footer">
-            Generated on {{ timestamp }} | Powered by DistilBERT Phishing Detection Model
+            Generated on {{ timestamp }} | Powered by DistilBERT DL Phishing Detection Model
         </div>
     </div>
     
@@ -732,6 +732,44 @@ class DashboardGenerator:
         
         # Prepare important tokens
         important_tokens = prediction_result.get('top_important_tokens', [])
+
+        # Normalize weighted predictions for display (convert probabilities and weights to percentages)
+        weighted_predictions = prediction_result.get('weighted_predictions', None)
+        if weighted_predictions:
+            weighted_predictions = dict(weighted_predictions)
+            normalized_weighted_sections = []
+            for sec in weighted_predictions.get('section_predictions', []):
+                normalized_weighted_sections.append({
+                    **sec,
+                    'phishing_probability': round(sec.get('phishing_probability', 0.0) * 100, 2),
+                    'legitimate_probability': round(sec.get('legitimate_probability', 0.0) * 100, 2),
+                    'confidence': round(sec.get('confidence', 0.0) * 100, 2),
+                    'weight': round(sec.get('weight', 0.0) * 100, 2),
+                })
+            weighted_predictions['section_predictions'] = normalized_weighted_sections
+            weighted_predictions['aggregate_phishing_probability'] = round(
+                weighted_predictions.get('aggregate_phishing_probability', 0.0) * 100, 2
+            )
+            weighted_predictions['aggregate_legitimate_probability'] = round(
+                weighted_predictions.get('aggregate_legitimate_probability', 0.0) * 100, 2
+            )
+            weighted_predictions['aggregate_confidence'] = round(
+                weighted_predictions.get('aggregate_confidence', 0.0) * 100, 2
+            )
+
+        # Normalize pattern detection score for display (0-1 -> percentage)
+        pattern_detection = prediction_result.get('pattern_detection', None)
+        if pattern_detection:
+            pattern_detection = dict(pattern_detection)
+            pattern_detection['risk_score'] = round(pattern_detection.get('risk_score', 0.0) * 100, 2)
+
+        # Normalize final assessment confidence/risk scores for display (0-1 -> percentage)
+        final_assessment = prediction_result.get('final_assessment', None)
+        if final_assessment:
+            final_assessment = dict(final_assessment)
+            final_assessment['ml_confidence'] = round(final_assessment.get('ml_confidence', 0.0) * 100, 2)
+            final_assessment['boosted_confidence'] = round(final_assessment.get('boosted_confidence', 0.0) * 100, 2)
+            final_assessment['pattern_risk_score'] = round(final_assessment.get('pattern_risk_score', 0.0) * 100, 2)
         
         # Normalize probabilities to percentage
         phishing_percentage = round(phishing_prob * 100, 2)
@@ -786,9 +824,9 @@ class DashboardGenerator:
             'reliability_warning': prediction_result.get('reliability', None),
             'important_tokens': important_tokens,
             'crypto_gambling_detection': prediction_result.get('crypto_gambling_detection', None),
-            'pattern_detection': prediction_result.get('pattern_detection', None),
-            'weighted_predictions': prediction_result.get('weighted_predictions', None),
-            'final_assessment': prediction_result.get('final_assessment', None),
+            'pattern_detection': pattern_detection,
+            'weighted_predictions': weighted_predictions,
+            'final_assessment': final_assessment,
             'prediction_result': {
                 'section_predictions': normalized_sections,
                 'section_count': len(normalized_sections)
