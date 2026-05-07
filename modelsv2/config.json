@@ -1,0 +1,17 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "max_length": 256,
+  "batch_size": 8,
+  "learning_rate": 2e-05,
+  "epochs": 1,
+  "device": "cpu",
+  "best_val_f1": 0.9547325102880658,
+  "best_epoch": 1,
+  "test_metrics": {
+    "loss": 0.10267055251006968,
+    "accuracy": 0.9644955619452431,
+    "precision": 0.9472990777338604,
+    "recall": 0.9586666666666667,
+    "f1": 0.9529489728296885
+  }
+}

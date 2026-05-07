@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 
 def setup_model_path():
     """Get path to the model directory."""
-    # Navigate from websitedetectiontest back to root, then to models/
+    # Navigate from websitedetectiontest back to root, then to modelsv2/
     current_dir = Path(__file__).parent
     project_root = current_dir.parent
-    model_path = project_root / 'models' / 'distilbert_phishing_model'
+    model_path = project_root / 'modelsv2'
     
     if not model_path.exists():
         raise FileNotFoundError(
@@ -213,6 +213,11 @@ def main():
         logger.info(f"  - Phishing: {prediction_result['phishing_probability']:.2%}")
         logger.info(f"  - Legitimate: {prediction_result['legitimate_probability']:.2%}")
         logger.info(f"  - Confidence: {prediction_result['confidence']:.2%}")
+
+        # Use the full-document model output as the final ML decision.
+        effective_ml_label = prediction_result['predicted_label']
+        effective_ml_confidence = prediction_result['confidence']
+        ml_source = 'Full Document'
         
         # Step 4.2: Run pattern detection for scam indicators
         logger.info("\n[Step 4.2/6] Running pattern detection for scam indicators...")
@@ -233,35 +238,26 @@ def main():
         # Step 4.3: Combine ML and pattern detection
         logger.info("\n[Step 4.3/6] Combining ML and pattern detection results...")
         
-        # If ML and patterns both indicate phishing, confidence is very high
-        # If only one indicates phishing, boost confidence
-        ml_predicts_phishing = prediction_result['predicted_label'] == 'Phishing'
+        ml_predicts_phishing = effective_ml_label == 'Phishing'
         patterns_flag_scam = pattern_results['flagged']
         
         final_assessment = {
-            'ml_prediction': prediction_result['predicted_label'],
-            'ml_confidence': prediction_result['confidence'],
+            'ml_prediction': effective_ml_label,
+            'ml_confidence': effective_ml_confidence,
+            'ml_source': ml_source,
             'pattern_risk': pattern_results['risk_level'],
             'pattern_risk_score': pattern_results['risk_score'],
-            'combined_recommendation': None,
-            'boosted_confidence': prediction_result['confidence'],
+            'combined_recommendation': effective_ml_label,
+            'boosted_confidence': effective_ml_confidence,
+            'pattern_flagged': patterns_flag_scam,
         }
         
         if ml_predicts_phishing and patterns_flag_scam:
-            final_assessment['combined_recommendation'] = 'Phishing'
-            final_assessment['boosted_confidence'] = min(1.0, prediction_result['confidence'] + 0.15)
             logger.warning("⚠️  STRONG PHISHING INDICATOR - Both ML and patterns detect phishing")
         elif patterns_flag_scam and not ml_predicts_phishing:
-            final_assessment['combined_recommendation'] = 'Likely Phishing (Pattern-based)'
-            final_assessment['boosted_confidence'] = min(1.0, prediction_result['confidence'] + 0.25)
             logger.warning("⚠️  PATTERN-BASED PHISHING - Scam patterns detected despite ML classification")
         elif ml_predicts_phishing and not patterns_flag_scam:
-            final_assessment['combined_recommendation'] = 'Likely Phishing (ML-based)'
-            final_assessment['boosted_confidence'] = prediction_result['confidence']
             logger.warning("⚠️  ML-BASED PHISHING - Model confidence but no strong pattern match")
-        else:
-            final_assessment['combined_recommendation'] = prediction_result['predicted_label']
-            final_assessment['boosted_confidence'] = prediction_result['confidence']
         
         prediction_result['final_assessment'] = final_assessment
         
