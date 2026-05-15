@@ -1,30 +1,60 @@
-# Phishing Website Detection using DistilBERT
+# ⚠️ Phishing Website Detection using DistilBERT - Thesis Research Project
+
+> **⚠️ WARNING:** This is a thesis research project developed for academic purposes. This system is designed for educational and authorized security research only. Users must comply with all applicable laws and obtain proper authorization before using this system to analyze live websites.
 
 A pre-trained deep learning model for detecting phishing websites using **DistilBERT** on raw HTML content. This system performs **inference-only** phishing detection with confidence scores and attention-based interpretability.
 
+**Project:** AI-based Phishing Website Detection (Thesis Research)  
+**Author:** Vũ  
+**Status:** Research/Development (Not for production use without review)
+
 ## Overview
 
+This system provides end-to-end phishing detection on live websites through the following pipeline:
+
 ```
-Live Website
-     ↓
-Scrape HTML via ScraperAPI or Apify
-     ↓
-Clean & Preprocess (remove scripts, styles, extract text)
-     ↓
-DistilBERT Tokenization (512 tokens max)
-     ↓
-┌──────────────────────────────────────────┐
-│  DistilBERT Binary Classification        │
-│  • Pre-trained model (distilbert-base)   │
-│  • Fine-tuned on phishing dataset        │
-│  • Binary output: Legitimate (0) or      │
-│    Phishing (1)                          │
-│  • Probability scores for both classes   │
-│  • Attention weights for interpretability│
-│  • PyTorch-based inference               │
-└──────────────────────────────────────────┘
-     ↓
-Interactive HTML Dashboard & Predictions
+┌─────────────────────────────────────────────────────────────┐
+│ INPUT: Live Website URL                                     │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SCRAPING: Fetch HTML via Apify Web Scraper                 │
+│  • Handles JavaScript-rendered content                      │
+│  • Respects robots.txt & rate limiting                      │
+│  • Distributed proxy infrastructure                         │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ PREPROCESSING: Clean & Extract Text                         │
+│  • Remove scripts, styles, metadata                         │
+│  • Extract visible text content                             │
+│  • Normalize whitespace & encoding                          │
+│  • Limited to first 512 tokens                              │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ TOKENIZATION: DistilBERT Tokenizer                          │
+│  • Vocabulary size: 30,522 tokens                           │
+│  • Max sequence length: 512 tokens                          │
+│  • Special tokens: [CLS], [SEP], [PAD], [UNK]             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ CLASSIFICATION: DistilBERT Model Inference                 │
+│  • Pre-trained transformer (66M parameters)                │
+│  • 6 layers, 12 attention heads                            │
+│  • Fine-tuned on 64,000 website samples                    │
+│  • Output: Binary (Legitimate=0, Phishing=1)              │
+│  • Confidence scores & attention weights                   │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ OUTPUT: Interactive HTML Dashboard                          │
+│  • Prediction results with confidence scores                │
+│  • Model interpretability visualizations                    │
+│  • Threat indicators & risk assessment                      │
+│  • Additional pattern-based detection (crypto scams, etc.)  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Model Performance
@@ -101,9 +131,8 @@ AIPhishingWebsiteDetection/
    ```bash
    copy ..\.env.example .env
    # Edit .env with your API keys:
-   # - SCRAPER_API_KEY (for ScraperAPI)
-   # - APIFY_API_KEY (for Apify)
-   # - DEEPL_API_KEY (for text translation)
+   # - APIFY_API_KEY (required, for web scraping via Apify)
+   # - DEEPL_API_KEY (optional, for text translation)
    ```
 
 ## Quick Start
@@ -132,6 +161,10 @@ python main.py --urls https://example.com https://example2.com https://example3.
 ### View Generated Dashboard
 
 Open the generated HTML file in your browser (path displayed in console)
+
+**Example Output Dashboard:**
+
+![Phishing Detection Dashboard Example](ExampleOutputImage/Screenshot%202026-05-15%20204438.png)
 
 **For detailed detection app usage:** See [websitedetectiontest/README.md](websitedetectiontest/README.md)
 
@@ -216,7 +249,8 @@ Text translation utility for handling non-English websites.
 
 ### API Key Errors
 - Ensure `.env` file is configured with correct API keys
-- Verify `SCRAPER_API_KEY`, `APIFY_API_KEY`, `DEEPL_API_KEY` are set
+- Verify `APIFY_API_KEY` is set (required for scraping)
+- `DEEPL_API_KEY` is optional (only needed for translation)
 
 ### Slow Inference
 - Enable GPU usage with `--gpu` flag
@@ -224,8 +258,9 @@ Text translation utility for handling non-English websites.
 
 ### Website Scraping Fails
 - Check internet connection
-- Verify API quota limits haven't been exceeded
-- Try alternative scraper (switch between ScraperAPI and Apify)
+- Verify Apify API quota limits haven't been exceeded
+- Ensure `APIFY_API_KEY` is valid and has active credits
+- Check if target website is accessible via Apify
 
 **For more help:** See [websitedetectiontest/README.md](websitedetectiontest/README.md)
 
@@ -264,6 +299,39 @@ If you use this project in research, please cite the original dataset and model:
   year={2019}
 }
 ```
+
+## Terms of Service & Ethical Use
+
+### Intended Use
+This system is designed for **legitimate phishing detection and cybersecurity research** on authorized targets only. Permitted uses include:
+- Testing on your own websites and portfolio sites
+- Security research using public phishing datasets (e.g., Phishtank)
+- Academic and educational purposes
+- Authorized security assessments with proper permissions
+
+### Prohibited Uses
+❌ Unauthorized scraping of third-party websites  
+❌ Circumventing website security controls or robots.txt restrictions  
+❌ Malicious flagging or defamation of legitimate websites  
+❌ Violating website Terms of Service or legal restrictions  
+❌ Using predictions as the sole basis for blocking/filtering decisions  
+
+### Ethical Responsibilities
+- **Obtain Authorization**: Always verify you have permission to analyze target websites
+- **Respect Legal Boundaries**: Comply with applicable laws (CFAA, GDPR, CCPA, etc.)
+- **Human Review**: AI predictions must be reviewed by humans before actionable decisions
+- **Transparency**: Disclose the use of AI/automated systems in your analysis
+- **Data Privacy**: Handle scraped website content responsibly; do not store sensitive personal data
+- **Responsible Disclosure**: If you discover phishing sites, report through official channels
+
+### Data Handling
+- Scraped HTML content is processed immediately and **not permanently stored**
+- Only model predictions and results are retained for analysis
+- Personal or sensitive data inadvertently captured is treated as confidential
+- For detailed privacy practices, see [Section 6.3 - Ethical Considerations](websitedetectiontest/README.md#ethical-considerations)
+
+### Disclaimer
+This project is provided "as-is" for research purposes. Users assume full responsibility for compliance with applicable laws and ethical standards. The developers are not liable for misuse of this system or unauthorized application of its outputs.
 
 ## License
 

@@ -48,6 +48,10 @@ Thumbs.db
 # Model checkpoints (optional - keep if you want to track)
 # checkpoints/
 
+# Generated results and outputs
+websitedetectiontest/results/
+*.html
+
 # Results
 websitedetectiontest/results/
 results/
