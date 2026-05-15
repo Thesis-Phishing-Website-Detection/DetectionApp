@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class PatternDetector:
-    """Detects phishing patterns in text that bypass ML models."""
+    """Detects phishing patterns in text that bypass DL models."""
     
     # Extreme earning/money claim patterns
     EARNING_CLAIM_PATTERNS = [

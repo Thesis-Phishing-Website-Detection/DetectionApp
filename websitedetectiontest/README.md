@@ -56,7 +56,7 @@ python main.py --url https://example.com
 ### With API Key
 
 ```bash
-python main.py --url https://example.com --api-key 7c16bff05342c974e711f0385639c640
+python main.py --url https://example.com --api-key
 ```
 
 ### Custom Timeout
@@ -69,11 +69,11 @@ python main.py --url https://example.com --timeout 60
 
 ```bash
 # Set environment variable (Windows)
-set SCRAPER_API_KEY=your_api_key_here
+set APIFY_API_KEY=your_api_key_here
 python main.py --url https://example.com
 
 # Or Linux/Mac
-export SCRAPER_API_KEY=your_api_key_here
+export APIFY_API_KEY=your_api_key_here
 python main.py --url https://example.com
 ```
 
