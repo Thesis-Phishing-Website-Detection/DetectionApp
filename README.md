@@ -5,7 +5,6 @@
 A pre-trained deep learning model for detecting phishing websites using **DistilBERT** on raw HTML content. This system performs **inference-only** phishing detection with confidence scores and attention-based interpretability.
 
 **Project:** AI-based Phishing Website Detection (Thesis Research)  
-**Author:** Vũ  
 **Status:** Research/Development (Not for production use without review)
 
 ## Overview
